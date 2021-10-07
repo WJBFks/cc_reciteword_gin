@@ -54,7 +54,14 @@ func Register(ctx *gin.Context) {
 		"email":    userEmail,
 		"password": string(pass),
 	})
-	util.SaveJsons(users, "data/user.json")
+	err = util.SaveJsons(users, "data/user.json")
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code": http.StatusServiceUnavailable,
+			"msg":  "系统错误，注册失败",
+		})
+		return
+	}
 	// 获取Token
 	token, err := common.ReleaseToken(userTel)
 	if err != nil {
@@ -104,9 +111,6 @@ func Login(ctx *gin.Context) {
 	}
 	// 如果密码错误
 	var pass string = fmt.Sprint(user["password"])
-	pass0, err := bcrypt.GenerateFromPassword([]byte(userPassword), bcrypt.DefaultCost)
-	fmt.Print(string(pass0))
-	fmt.Print(pass)
 	err = bcrypt.CompareHashAndPassword([]byte(pass), []byte(userPassword))
 	if err != nil {
 		ctx.JSON(200, gin.H{
