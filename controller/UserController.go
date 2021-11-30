@@ -1,8 +1,9 @@
 package controller
 
 import (
+	"cc_gatherer_gin/DB"
 	"cc_gatherer_gin/common"
-	"cc_gatherer_gin/util"
+	"cc_gatherer_gin/model"
 	"fmt"
 	"net/http"
 
@@ -17,7 +18,7 @@ func Register(ctx *gin.Context) {
 	userEmail := ctx.PostForm("userEmail")
 	userPassword := ctx.PostForm("userPassword")
 	// 读取数据库
-	users, err := util.ReadJsons("data/user.json")
+	user, err := DB.Users.Query(userTel)
 	if err != nil {
 		ctx.JSON(200, gin.H{
 			"code": http.StatusServiceUnavailable,
@@ -25,14 +26,9 @@ func Register(ctx *gin.Context) {
 		})
 		return
 	}
+
 	// 检查手机号唯一性
-	isExist := false
-	for _, item := range users {
-		if item["tel"] == userTel {
-			isExist = true
-		}
-	}
-	if isExist {
+	if user.Tel == userTel {
 		ctx.JSON(200, gin.H{
 			"code": http.StatusBadRequest,
 			"msg":  "手机号已存在",
@@ -43,22 +39,21 @@ func Register(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(200, gin.H{
 			"code": http.StatusServiceUnavailable,
-			"msg":  "系统错误，注册失败",
+			"msg":  "系统错误，注册失败1",
 		})
 	}
 
-	// 添加到数据库
-	users = append(users, gin.H{
-		"name":     userName,
-		"tel":      userTel,
-		"email":    userEmail,
-		"password": string(pass),
+	err = DB.Users.Insert(model.User{
+		Name:     userName,
+		Tel:      userTel,
+		Password: string(pass),
+		Email:    userEmail,
+		Words:    "",
 	})
-	err = util.SaveJsons(users, "data/user.json")
 	if err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
 			"code": http.StatusServiceUnavailable,
-			"msg":  "系统错误，注册失败",
+			"msg":  "系统错误，注册失败2",
 		})
 		return
 	}
@@ -83,35 +78,17 @@ func Login(ctx *gin.Context) {
 	// 获取参数
 	userTel := ctx.PostForm("userTel")
 	userPassword := ctx.PostForm("userPassword")
-	// 读取数据库
-	users, err := util.ReadJsons("data/user.json")
+	// 查找用户
+	user, err := DB.Users.Query(userTel)
 	if err != nil {
 		ctx.JSON(200, gin.H{
 			"code": http.StatusServiceUnavailable,
-			"msg":  "用户数据读取出错",
-		})
-		return
-	}
-	// 查找用户
-	isExist := false
-	user := gin.H{}
-	for _, item := range users {
-		if item["tel"] == userTel {
-			isExist = true
-			user = item
-		}
-	}
-	// 如果用户不存在
-	if !isExist {
-		ctx.JSON(200, gin.H{
-			"code": http.StatusBadRequest,
 			"msg":  "账号或密码错误，登录失败",
 		})
 		return
 	}
 	// 如果密码错误
-	var pass string = fmt.Sprint(user["password"])
-	err = bcrypt.CompareHashAndPassword([]byte(pass), []byte(userPassword))
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(userPassword))
 	if err != nil {
 		ctx.JSON(200, gin.H{
 			"code": http.StatusBadRequest,
@@ -137,26 +114,9 @@ func Login(ctx *gin.Context) {
 
 func Info(ctx *gin.Context) {
 	userTel, _ := ctx.Get("user")
-	// 读取数据库
-	users, err := util.ReadJsons("data/user.json")
-	if err != nil {
-		ctx.JSON(200, gin.H{
-			"code": http.StatusServiceUnavailable,
-			"msg":  "用户数据读取出错",
-		})
-		return
-	}
 	// 查找用户
-	isExist := false
-	user := gin.H{}
-	for _, item := range users {
-		if item["tel"] == userTel {
-			isExist = true
-			user = item
-		}
-	}
-	fmt.Print(userTel)
-	if !isExist {
+	user, err := DB.Users.Query(fmt.Sprint(userTel))
+	if err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
 			"code": 400,
 			"msg":  "用户不存在",
@@ -167,5 +127,39 @@ func Info(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"user": user,
+	})
+}
+
+func UsersInfo(ctx *gin.Context) {
+	users, err := DB.Users.List()
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code": http.StatusServiceUnavailable,
+			"msg":  "查找失败",
+		})
+		return
+	}
+	// 返回用户信息
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"user": users,
+	})
+}
+
+func Words(ctx *gin.Context) {
+	// 获取参数
+	tel := ctx.PostForm("tel")
+	words := ctx.PostForm("words")
+	err := DB.Users.WordsUpdate(tel, words)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code": http.StatusServiceUnavailable,
+			"msg":  "单词表更新失败",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"msg":  "单词表更新成功",
 	})
 }
