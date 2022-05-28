@@ -20,6 +20,7 @@ func Register(ctx *gin.Context) {
 	// 读取数据库
 	user, err := DB.Users.Query(userTel)
 	if err != nil {
+		fmt.Print(err)
 		ctx.JSON(200, gin.H{
 			"code": http.StatusServiceUnavailable,
 			"msg":  "用户数据读取出错",

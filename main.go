@@ -8,15 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func test() {
-	user, err := DB.Users.Query("18085268536")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	fmt.Print(user.Name)
-}
-
 func main() {
 	// 打开数据库
 	err := DB.SqlOpen()
@@ -24,7 +15,6 @@ func main() {
 		fmt.Println(err.Error())
 		return
 	}
-	// test()
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
 	r = CollectRoute(r)
